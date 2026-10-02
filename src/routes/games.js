@@ -4,6 +4,7 @@ import { pool } from '../config/db.js';
 import { START_FEN } from '../game/position.js';
 import { applyMove, boardState } from '../game/chess-service.js';
 import { parseTimeControl, remainingMs } from '../game/time-control.js';
+import { broadcastGame } from '../realtime/game-hub.js';
 
 const router = Router();
 
@@ -13,8 +14,8 @@ router.post('/', requireAuth, async (req, res, next) => {
       ? req.body.timeControl : '600+0';
 
     const result = await pool.query(
-      'INSERT INTO games (white_player_id,status,time_control,position_fen) VALUES ($1,$2,$3,$4) RETURNING id,status,time_control,position_fen,created_at',
-      [req.user.sub, 'waiting', timeControl, START_FEN]
+      'INSERT INTO games (white_player_id,status,time_control,position_fen,white_time_ms,black_time_ms) VALUES ($1,$2,$3,$4,$5,$5) RETURNING id,status,time_control,position_fen,created_at',
+      [req.user.sub, 'waiting', timeControl, START_FEN, parseTimeControl(timeControl).baseMs]
     );
     res.status(201).json({game: result.rows[0]});
   } catch (error) {
@@ -25,7 +26,7 @@ router.post('/', requireAuth, async (req, res, next) => {
 router.get('/:id', requireAuth, async (req,res,next) => {
   try {
     const result = await pool.query(
-      'SELECT id,white_player_id,black_player_id,status,next_turn,time_control,position_fen,result,created_at,updated_at FROM games WHERE id=$1',
+      'SELECT id,white_player_id,black_player_id,status,next_turn,time_control,position_fen,result,white_time_ms,black_time_ms,turn_started_at,created_at,updated_at FROM games WHERE id=$1',
       [req.params.id]
     );
     if (!result.rowCount) return res.status(404).json({error:{code:'GAME_NOT_FOUND',message:'Game not found'}});
@@ -33,7 +34,8 @@ router.get('/:id', requireAuth, async (req,res,next) => {
     if (game.white_player_id !== req.user.sub && game.black_player_id !== req.user.sub) {
       return res.status(403).json({error:{code:'FORBIDDEN',message:'Not a player in this game'}});
     }
-    res.json({game,position:boardState(game.position_fen)});
+    const clock=remainingMs(game);
+    res.json({game:{...game,white_time_ms:clock.whiteMs,black_time_ms:clock.blackMs},position:boardState(game.position_fen)});
   } catch(error) { next(error); }
 });
 
@@ -65,6 +67,15 @@ router.post('/:id/moves', requireAuth, async (req,res,next) => {
       return res.status(409).json({error:{code:'GAME_NOT_ACTIVE',message:'Game is not active'}});
     }
 
+    const clock=remainingMs(game);
+    const turnMs=game.next_turn==='white'?clock.whiteMs:clock.blackMs;
+    if(turnMs<=0){
+      const timeoutResult=game.next_turn==='white'?'black_win':'white_win';
+      await client.query('UPDATE games SET status=$1,result=$2,updated_at=NOW() WHERE id=$3',['finished',timeoutResult,game.id]);
+      await client.query('COMMIT');
+      broadcastGame(game.id,{type:'game_finished',result:timeoutResult});
+      return res.status(409).json({error:{code:'TIMEOUT',message:'Time expired'},result:timeoutResult});
+    }
     const expectedPlayer=game.next_turn === 'white' ? game.white_player_id : game.black_player_id;
     if (expectedPlayer !== req.user.sub) {
       await client.query('ROLLBACK');
@@ -85,13 +96,16 @@ router.post('/:id/moves', requireAuth, async (req,res,next) => {
     );
 
     const status=result.status === 'active' || result.status === 'check' ? 'active' : 'finished';
+    const resultValue=result.status==='checkmate' ? (game.next_turn==='white'?'white_win':'black_win') : (status==='finished'?result.status:null);
     await client.query(
       'UPDATE games SET position_fen=$1,next_turn=$2,status=$3,result=$4,updated_at=NOW() WHERE id=$5',
-      [result.fen,result.nextTurn,status,result.status === 'check' ? null : result.status,game.id]
+      [result.fen,result.nextTurn,status,resultValue,game.id]
     );
 
     await client.query('COMMIT');
-    res.status(201).json({move:move.rows[0],position:boardState(result.fen),gameStatus:result.status});
+    const payload={type:'game_update',gameId:game.id,position:boardState(result.fen),gameStatus:result.status,result:resultValue};
+    broadcastGame(game.id,payload);
+    res.status(201).json({move:move.rows[0],position:payload.position,gameStatus:result.status,result:resultValue});
   } catch(error) {
     await client.query('ROLLBACK').catch(()=>{});
     next(error);
