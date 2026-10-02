@@ -97,9 +97,13 @@ router.post('/:id/moves', requireAuth, async (req,res,next) => {
 
     const status=result.status === 'active' || result.status === 'check' ? 'active' : 'finished';
     const resultValue=result.status==='checkmate' ? (game.next_turn==='white'?'white_win':'black_win') : (status==='finished'?result.status:null);
+    const tc=parseTimeControl(game.time_control);
+    const afterMoveMs=Math.max(0,turnMs+tc.incrementMs);
+    const whiteMs=game.next_turn==='white'?afterMoveMs:clock.whiteMs;
+    const blackMs=game.next_turn==='black'?afterMoveMs:clock.blackMs;
     await client.query(
-      'UPDATE games SET position_fen=$1,next_turn=$2,status=$3,result=$4,updated_at=NOW() WHERE id=$5',
-      [result.fen,result.nextTurn,status,resultValue,game.id]
+      'UPDATE games SET position_fen=$1,next_turn=$2,status=$3,result=$4,white_time_ms=$5,black_time_ms=$6,turn_started_at=CASE WHEN $3=$7 THEN NOW() ELSE turn_started_at END,updated_at=NOW() WHERE id=$8',
+      [result.fen,result.nextTurn,status,resultValue,whiteMs,blackMs,'active',game.id]
     );
 
     await client.query('COMMIT');
