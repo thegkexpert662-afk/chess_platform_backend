@@ -5,8 +5,11 @@ import rateLimit from 'express-rate-limit';
 import {env} from './config/env.js';
 import routes from './routes/index.js';
 import {notFound,errorHandler} from './middleware/error-handler.js';
+import { createServer } from 'node:http';
+import { attachRealtime } from './realtime/game-hub.js';
 
 const app=express();
+const server=createServer(app);
 
 app.disable('x-powered-by');
 app.use(helmet());
@@ -24,6 +27,8 @@ app.use('/api',routes);
 app.use(notFound);
 app.use(errorHandler);
 
-app.listen(env.port,()=>{
+attachRealtime(server);
+
+server.listen(env.port,()=>{
   console.log('Chess backend listening on port '+env.port);
 });
