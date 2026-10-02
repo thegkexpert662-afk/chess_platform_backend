@@ -1,5 +1,5 @@
 export function parseTimeControl(value='600+0') {
-  const match = /^(\\d{1,6})\\+(\\d{1,6})$/.exec(String(value));
+  const match = /^(\d{1,6})\+(\d{1,6})$/.exec(String(value));
   if (!match) throw Object.assign(new Error('Invalid time control'),{status:400,code:'INVALID_TIME_CONTROL'});
   const baseSeconds=Number(match[1]);
   const incrementSeconds=Number(match[2]);
