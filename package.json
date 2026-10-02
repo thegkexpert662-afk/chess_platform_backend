@@ -8,7 +8,9 @@
     "start": "node src/server.js",
     "check": "node --check src/server.js"
   },
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "chess.js": "^1.4.0",
     "cors": "^2.8.5",
