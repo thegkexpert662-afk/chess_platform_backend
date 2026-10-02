@@ -109,7 +109,7 @@ router.post('/:id/moves', requireAuth, async (req,res,next) => {
     await client.query('COMMIT');
     const payload={type:'game_update',gameId:game.id,position:boardState(result.fen),gameStatus:result.status,result:resultValue};
     broadcastGame(game.id,payload);
-    res.status(201).json({move:move.rows[0],position:payload.position,gameStatus:result.status,result:resultValue});
+    res.status(201).json({move:move.rows[0],position:payload.position,gameStatus:result.status,result:resultValue,game:{id:game.id,status,result:resultValue,next_turn:result.nextTurn,white_player_id:game.white_player_id,black_player_id:game.black_player_id}});
   } catch(error) {
     await client.query('ROLLBACK').catch(()=>{});
     next(error);
