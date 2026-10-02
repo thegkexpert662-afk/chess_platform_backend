@@ -38,3 +38,19 @@ CREATE TABLE IF NOT EXISTS game_moves (
 CREATE INDEX IF NOT EXISTS idx_games_white ON games(white_player_id);
 CREATE INDEX IF NOT EXISTS idx_games_black ON games(black_player_id);
 CREATE INDEX IF NOT EXISTS idx_moves_game ON game_moves(game_id,ply);
+
+
+ALTER TABLE games ADD COLUMN IF NOT EXISTS white_time_ms BIGINT NOT NULL DEFAULT 600000;
+ALTER TABLE games ADD COLUMN IF NOT EXISTS black_time_ms BIGINT NOT NULL DEFAULT 600000;
+ALTER TABLE games ADD COLUMN IF NOT EXISTS turn_started_at TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS game_events (
+  id BIGSERIAL PRIMARY KEY,
+  game_id UUID NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+  player_id UUID REFERENCES users(id),
+  event_type VARCHAR(40) NOT NULL,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_games_waiting ON games(status,time_control,created_at);
+CREATE INDEX IF NOT EXISTS idx_events_game ON game_events(game_id,created_at);
