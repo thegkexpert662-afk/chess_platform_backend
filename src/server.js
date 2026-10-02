@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import {env} from './config/env.js';
 import routes from './routes/index.js';
 import {notFound,errorHandler} from './middleware/error-handler.js';
@@ -14,6 +15,7 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json({limit:'32kb'}));
+app.use(rateLimit({windowMs:60_000,max:120,standardHeaders:true,legacyHeaders:false}));
 
 app.get('/',(req,res)=>{
   res.json({name:'Chess Platform Backend',version:'1.0.0'});
