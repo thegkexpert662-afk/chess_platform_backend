@@ -12,3 +12,6 @@ Server-authoritative Node.js backend for the Chess Platform.
 Health endpoint: GET /api/health
 
 The client is not trusted with the final game state. Game moves are authenticated and processed by the server.
+
+## Architecture
+Frontend and backend are separate repositories and communicate through HTTPS APIs.
