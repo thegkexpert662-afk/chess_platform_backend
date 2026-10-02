@@ -3,6 +3,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { pool } from '../config/db.js';
 import { START_FEN } from '../game/position.js';
 import { applyMove, boardState } from '../game/chess-service.js';
+import { parseTimeControl, remainingMs } from '../game/time-control.js';
 
 const router = Router();
 
