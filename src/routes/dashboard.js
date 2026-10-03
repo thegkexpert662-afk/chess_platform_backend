@@ -122,4 +122,18 @@ router.get('/settings', requireAuth, async (req,res,next)=>{
   } catch(error){next(error);}
 });
 
+
+router.get('/computer', requireAuth, async (req,res,next)=>{
+  try {
+    res.json({
+      modes: [
+        {id:'easy',name:'Easy',description:'Relaxed practice'},
+        {id:'medium',name:'Medium',description:'Balanced opponent'},
+        {id:'hard',name:'Hard',description:'Serious training'}
+      ],
+      timeControls: ['300+0','600+0','600+5','900+10']
+    });
+  } catch(error){next(error);}
+});
+
 export default router;
