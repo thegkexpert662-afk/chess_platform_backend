@@ -14,7 +14,14 @@ const server=createServer(app);
 app.disable('x-powered-by');
 app.use(helmet());
 app.use(cors({
-  origin: env.corsOrigins.length ? env.corsOrigins : false,
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (env.corsOrigins.includes(origin)) return callback(null, true);
+    if (env.nodeEnv !== 'production' && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('CORS origin not allowed'));
+  },
   credentials: true
 }));
 app.use(express.json({limit:'32kb'}));
