@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { pool } from '../config/db.js';
 import { parseTimeControl } from '../game/time-control.js';
+import { broadcastGame } from '../realtime/game-hub.js';
 
 const router=Router();
 
@@ -48,6 +49,7 @@ router.post('/:id/resign',requireAuth,async(req,res,next)=>{
     const result=game.white_player_id===req.user.sub?'black_win':'white_win';
     await client.query('UPDATE games SET status=$1,result=$2,updated_at=NOW() WHERE id=$3',['finished',result,game.id]);
     await client.query('COMMIT');
+    broadcastGame(game.id,{type:'game_finished',result});
     res.json({status:'finished',result});
   }catch(error){await client.query('ROLLBACK').catch(()=>{});next(error);}
   finally{client.release();}
