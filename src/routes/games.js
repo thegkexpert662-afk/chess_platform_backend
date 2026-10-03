@@ -35,7 +35,7 @@ router.get('/:id', requireAuth, async (req,res,next) => {
       return res.status(403).json({error:{code:'FORBIDDEN',message:'Not a player in this game'}});
     }
     const latestMove = await pool.query(
-      'SELECT move_uci, created_at FROM game_moves WHERE game_id=$1 ORDER BY ply DESC LIMIT 1',
+      'SELECT move_uci, player_id, created_at FROM game_moves WHERE game_id=$1 ORDER BY ply DESC LIMIT 1',
       [game.id]
     );
     const clock=remainingMs(game);
