@@ -54,3 +54,61 @@ CREATE TABLE IF NOT EXISTS game_events (
 );
 CREATE INDEX IF NOT EXISTS idx_games_waiting ON games(status,time_control,created_at);
 CREATE INDEX IF NOT EXISTS idx_events_game ON game_events(game_id,created_at);
+
+
+-- Dynamic player platform data
+CREATE TABLE IF NOT EXISTS user_wallets (
+  user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  coin_balance INTEGER NOT NULL DEFAULT 0 CHECK (coin_balance >= 0),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS coin_transactions (
+  id BIGSERIAL PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  amount INTEGER NOT NULL,
+  reason VARCHAR(120) NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_coin_transactions_user ON coin_transactions(user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id BIGSERIAL PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title VARCHAR(120) NOT NULL,
+  message TEXT NOT NULL,
+  type VARCHAR(40) NOT NULL DEFAULT 'system',
+  is_read BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS tournaments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(120) NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  status VARCHAR(20) NOT NULL DEFAULT 'upcoming',
+  start_at TIMESTAMPTZ NOT NULL,
+  end_at TIMESTAMPTZ,
+  max_players INTEGER NOT NULL DEFAULT 64,
+  entry_coins INTEGER NOT NULL DEFAULT 0,
+  prize_coins INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS tournament_players (
+  tournament_id UUID NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (tournament_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_tournaments_status_start ON tournaments(status, start_at);
+
+CREATE TABLE IF NOT EXISTS user_settings (
+  user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  sound_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  notifications_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  board_theme VARCHAR(40) NOT NULL DEFAULT 'cream-gold',
+  piece_style VARCHAR(40) NOT NULL DEFAULT '3d',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
