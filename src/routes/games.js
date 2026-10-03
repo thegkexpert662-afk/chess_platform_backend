@@ -34,8 +34,16 @@ router.get('/:id', requireAuth, async (req,res,next) => {
     if (game.white_player_id !== req.user.sub && game.black_player_id !== req.user.sub) {
       return res.status(403).json({error:{code:'FORBIDDEN',message:'Not a player in this game'}});
     }
+    const latestMove = await pool.query(
+      'SELECT move_uci, created_at FROM game_moves WHERE game_id=$1 ORDER BY ply DESC LIMIT 1',
+      [game.id]
+    );
     const clock=remainingMs(game);
-    res.json({game:{...game,white_time_ms:clock.whiteMs,black_time_ms:clock.blackMs},position:boardState(game.position_fen)});
+    res.json({
+      game:{...game,white_time_ms:clock.whiteMs,black_time_ms:clock.blackMs},
+      position:boardState(game.position_fen),
+      lastMove: latestMove.rows[0] ?? null
+    });
   } catch(error) { next(error); }
 });
 
